@@ -1,0 +1,28 @@
+FROM python:3.14-slim
+
+WORKDIR /app
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Install PostgreSQL client tools and GDAL for PostGIS
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    postgresql-client \
+    libpq-dev \
+    gcc \
+    gdal-bin \
+    libgdal-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy project files
+COPY pyproject.toml uv.lock* ./
+
+# Install dependencies
+RUN uv sync --frozen --no-dev || uv sync --no-dev || uv sync
+
+# Copy application code
+COPY . .
+
+# Expose Django port
+EXPOSE 8000

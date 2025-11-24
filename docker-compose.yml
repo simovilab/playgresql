@@ -1,0 +1,49 @@
+services:
+  db:
+    build: .
+    container_name: playgresql_db
+    environment:
+      POSTGRES_DB: playgresql
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: playgresql_web
+    command: uv run python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/playgresql
+      ENABLE_GIS: "true"
+      OLLAMA_HOST: http://ollama:11434
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: playgresql_ollama
+    ports:
+      - "11435:11434"  # Map to 11435 to avoid conflict with local Ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  ollama_data:
